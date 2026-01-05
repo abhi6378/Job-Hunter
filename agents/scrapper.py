@@ -3,31 +3,35 @@ import requests
 def get_jobs(role, location="India", experience_type="fresher"):
     url = "https://jsearch.p.rapidapi.com/search"
 
-    # 1. Map user inputs to JSearch specific requirements
-    # Options available in API: 'no_experience', 'under_3_years_experience', 'more_than_3_years_experience'
-    
-    api_requirement = "no_experience" # Default for fresher
-    query_modifier = "Fresher"
+    # --- 1. SMART KEYWORD INJECTION ---
+    # Instead of trusting the API's hidden filter, we put the words right in the search.
+    if experience_type == "fresher":
+        # Search for: "Python Developer Fresher OR Intern in India"
+        query_text = f"{role} (Fresher OR Intern OR Junior OR Entry Level) in {location}"
+        api_requirements = None # Don't use strict filter, it kills results
+        
+    elif experience_type == "experienced":
+        query_text = f"Senior {role} in {location}"
+        api_requirements = "more_than_3_years_experience" # This works fine for seniors
+        
+    else:
+        # Default/Intermediate
+        query_text = f"{role} in {location}"
+        api_requirements = None
 
-    if experience_type == "experienced":
-        api_requirement = "more_than_3_years_experience"
-        query_modifier = "Senior"
-    elif experience_type == "intermediate":
-        api_requirement = "under_3_years_experience"
-        query_modifier = "Associate"
-
-    # 2. Construct the smart query
-    # We add the modifier to the text query AND use the strict API filter
-    query_text = f"{query_modifier} {role} in {location}"
+    print(f"🔎 Searching for: '{query_text}'...")
 
     querystring = {
         "query": query_text,
         "page": "1",
         "num_pages": "1",
         "country": "in",
-        "date_posted": "week",
-        "job_requirements": api_requirement  # <--- The new strict filter
+        "date_posted": "month" # Relaxed from 'week' to 'month' to find more opportunities
     }
+    
+    # Only add the strict requirement if we are 100% sure (like for seniors)
+    if api_requirements:
+        querystring["job_requirements"] = api_requirements
 
     headers = {
         "X-RapidAPI-Key": "YOUR_ACTUAL_API_KEY_HERE",
@@ -48,18 +52,20 @@ def get_jobs(role, location="India", experience_type="fresher"):
         return []
 
 if __name__ == "__main__":
-    # TEST 1: Find Fresher Jobs
+    # TEST 1: Find Fresher Jobs (Now using Keyword Injection)
     print("--- 🔍 SEARCHING FOR FRESHER JOBS ---")
     fresher_jobs = get_jobs("Python Developer", "India", "fresher")
     print(f"Found {len(fresher_jobs)} fresher jobs.")
     
     if fresher_jobs:
-        print(f"Example: {fresher_jobs[0].get('job_title')} at {fresher_jobs[0].get('employer_name')}")
+        job = fresher_jobs[0]
+        print(f"Title: {job.get('job_title')}")
+        print(f"Company: {job.get('employer_name')}")
+        # Check if we got a link this time
+        link = job.get('job_apply_link') or job.get('job_google_link') or "No link"
+        print(f"Link: {link}")
 
-    # TEST 2: Find Experienced Jobs
+    # TEST 2: Find Senior Jobs
     print("\n--- 🔍 SEARCHING FOR SENIOR JOBS ---")
     senior_jobs = get_jobs("Python Developer", "India", "experienced")
     print(f"Found {len(senior_jobs)} senior jobs.")
-    
-    if senior_jobs:
-        print(f"Example: {senior_jobs[0].get('job_title')} at {senior_jobs[0].get('employer_name')}")
