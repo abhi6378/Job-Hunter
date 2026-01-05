@@ -1,23 +1,36 @@
 import requests
 
-def get_jobs(role, location="India", experience="Fresher"):
+def get_jobs(role, location="India", experience_type="fresher"):
     url = "https://jsearch.p.rapidapi.com/search"
 
-    # 1. SMART QUERY: Combine Role + Experience + Location
-    # Example: "Python Developer Fresher in India"
-    # This acts as a natural filter for entry-level jobs.
-    query_text = f"{role} {experience} in {location}"
+    # 1. Map user inputs to JSearch specific requirements
+    # Options available in API: 'no_experience', 'under_3_years_experience', 'more_than_3_years_experience'
+    
+    api_requirement = "no_experience" # Default for fresher
+    query_modifier = "Fresher"
+
+    if experience_type == "experienced":
+        api_requirement = "more_than_3_years_experience"
+        query_modifier = "Senior"
+    elif experience_type == "intermediate":
+        api_requirement = "under_3_years_experience"
+        query_modifier = "Associate"
+
+    # 2. Construct the smart query
+    # We add the modifier to the text query AND use the strict API filter
+    query_text = f"{query_modifier} {role} in {location}"
 
     querystring = {
         "query": query_text,
         "page": "1",
-        "num_pages": "5",
-        "country": "in", 
-        "date_posted": "week" 
+        "num_pages": "1",
+        "country": "in",
+        "date_posted": "week",
+        "job_requirements": api_requirement  # <--- The new strict filter
     }
 
     headers = {
-        "X-RapidAPI-Key": "6b07e5f9d6mshf5143992e92e26cp17ea79jsne37d6e582818",
+        "X-RapidAPI-Key": "YOUR_ACTUAL_API_KEY_HERE",
         "X-RapidAPI-Host": "jsearch.p.rapidapi.com"
     }
 
@@ -35,22 +48,18 @@ def get_jobs(role, location="India", experience="Fresher"):
         return []
 
 if __name__ == "__main__":
-    # Example: Search for "Python" jobs for "Freshers" in "India"
-    jobs = get_jobs("AI engineer", "India", "Fresher")
+    # TEST 1: Find Fresher Jobs
+    print("--- 🔍 SEARCHING FOR FRESHER JOBS ---")
+    fresher_jobs = get_jobs("Python Developer", "India", "fresher")
+    print(f"Found {len(fresher_jobs)} fresher jobs.")
     
-    print(f"Found {len(jobs)} jobs.")
+    if fresher_jobs:
+        print(f"Example: {fresher_jobs[0].get('job_title')} at {fresher_jobs[0].get('employer_name')}")
+
+    # TEST 2: Find Experienced Jobs
+    print("\n--- 🔍 SEARCHING FOR SENIOR JOBS ---")
+    senior_jobs = get_jobs("Python Developer", "India", "experienced")
+    print(f"Found {len(senior_jobs)} senior jobs.")
     
-    if jobs:
-        job = jobs[0]
-        print("--------------------------------------------------")
-        print(f"ROLE: {job.get('job_title')}")
-        apply_link = job.get('job_apply_link') or job.get('job_google_link') or "No link found"
-        print(f"Apply Link: {apply_link}")
-        print(f"COMPANY: {job.get('employer_name')}")
-        print("--------------------------------------------------")
-        
-        # This is the FULL REQUIREMENT text Agent 2 will need
-        description = job.get('job_description', 'No description found.')
-        
-        print(f"FULL REQUIREMENTS (First 500 chars):\n{description[:500]}...") 
-        print("--------------------------------------------------")
+    if senior_jobs:
+        print(f"Example: {senior_jobs[0].get('job_title')} at {senior_jobs[0].get('employer_name')}")
