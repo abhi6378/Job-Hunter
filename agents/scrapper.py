@@ -1,35 +1,54 @@
 import requests
 
-def get_jobs(role, location="India", experience_type="fresher"):
+# 1. Map common names to JSearch 2-letter ISO codes
+COUNTRY_CODES = {
+    "india": "in",
+    "usa": "us",
+    "united states": "us",
+    "uk": "gb",
+    "united kingdom": "gb",
+    "canada": "ca",
+    "australia": "au",
+    "germany": "de",
+    "france": "fr"
+}
+
+def get_jobs(role, city=None, country="India", experience_type="fresher"):
     url = "https://jsearch.p.rapidapi.com/search"
 
-    # --- 1. SMART KEYWORD INJECTION ---
-    # Instead of trusting the API's hidden filter, we put the words right in the search.
-    if experience_type == "fresher":
-        # Search for: "Python Developer Fresher OR Intern in India"
-        query_text = f"{role} (Fresher OR Intern OR Junior OR Entry Level) in {location}"
-        api_requirements = None # Don't use strict filter, it kills results
-        
-    elif experience_type == "experienced":
-        query_text = f"Senior {role} in {location}"
-        api_requirements = "more_than_3_years_experience" # This works fine for seniors
-        
+    # --- 1. HANDLE COUNTRY CODE ---
+    # Convert "India" -> "in", default to "us" if unknown
+    country_code = COUNTRY_CODES.get(country.lower(), "us")
+
+    # --- 2. BUILD THE QUERY STRING ---
+    # If city is provided: "Python Developer in Jaipur, India"
+    # If no city: "Python Developer in India"
+    if city:
+        location_text = f"{city}, {country}"
     else:
-        # Default/Intermediate
-        query_text = f"{role} in {location}"
+        location_text = country
+
+    # --- 3. KEYWORD INJECTION FOR EXPERIENCE ---
+    if experience_type == "fresher":
+        query_text = f"{role} (Fresher OR Intern OR Junior) in {location_text}"
+        api_requirements = None
+    elif experience_type == "experienced":
+        query_text = f"Senior {role} in {location_text}"
+        api_requirements = "more_than_3_years_experience"
+    else:
+        query_text = f"{role} in {location_text}"
         api_requirements = None
 
-    print(f"🔎 Searching for: '{query_text}'...")
+    print(f"🔎 Searching: '{query_text}' (Region: {country_code.upper()})...")
 
     querystring = {
         "query": query_text,
         "page": "1",
         "num_pages": "1",
-        "country": "in",
-        "date_posted": "month" # Relaxed from 'week' to 'month' to find more opportunities
+        "country": country_code, # Strict country filter
+        "date_posted": "month"
     }
     
-    # Only add the strict requirement if we are 100% sure (like for seniors)
     if api_requirements:
         querystring["job_requirements"] = api_requirements
 
@@ -52,20 +71,21 @@ def get_jobs(role, location="India", experience_type="fresher"):
         return []
 
 if __name__ == "__main__":
-    # TEST 1: Find Fresher Jobs (Now using Keyword Injection)
-    print("--- 🔍 SEARCHING FOR FRESHER JOBS ---")
-    fresher_jobs = get_jobs("Python Developer", "India", "fresher")
-    print(f"Found {len(fresher_jobs)} fresher jobs.")
+    # --- TEST CASES ---
     
-    if fresher_jobs:
-        job = fresher_jobs[0]
-        print(f"Title: {job.get('job_title')}")
-        print(f"Company: {job.get('employer_name')}")
-        # Check if we got a link this time
-        link = job.get('job_apply_link') or job.get('job_google_link') or "No link"
-        print(f"Link: {link}")
+    # Case 1: Specific City in India
+    print("--- CASE 1: Jaipur, India ---")
+    jobs_jaipur = get_jobs("Python Developer", city="Jaipur", country="India")
+    if jobs_jaipur:
+        print(f"Found: {jobs_jaipur[0].get('job_title')} at {jobs_jaipur[0].get('employer_name')} ({jobs_jaipur[0].get('job_city')})")
 
-    # TEST 2: Find Senior Jobs
-    print("\n--- 🔍 SEARCHING FOR SENIOR JOBS ---")
-    senior_jobs = get_jobs("Python Developer", "India", "experienced")
-    print(f"Found {len(senior_jobs)} senior jobs.")
+    # Case 2: Whole Country (India)
+    print("\n--- CASE 2: All India ---")
+    jobs_india = get_jobs("Python Developer", city=None, country="India")
+    print(f"Found {len(jobs_india)} jobs in India.")
+
+    # Case 3: USA (Remote or Specific)
+    print("\n--- CASE 3: USA ---")
+    jobs_usa = get_jobs("React Developer", city="New York", country="USA")
+    if jobs_usa:
+        print(f"Found: {jobs_usa[0].get('job_title')} in {jobs_usa[0].get('job_city')}")
